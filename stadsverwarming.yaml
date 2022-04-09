@@ -1,0 +1,161 @@
+esphome:
+  name: stadsverwarming
+  platform: ESP32
+  board: esp32dev
+  includes:
+    - stadsverwarming.h  
+
+  on_boot:
+    priority: -100
+    then:
+      - switch.turn_off: multical_sensor
+      - switch.turn_on: multical_sensor
+      
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  services:
+    - service: read_sensor
+      then:
+          - switch.turn_on: multical_sensor
+
+ota:
+  password: "600d9ace2aad7994fa76330ae98f0516"
+
+wifi:
+  ssid: "tpdeco16"
+  password: ###############
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Stadsverwarming Fallback Hotspot"
+    password: ###############
+
+uart:
+  - rx_pin: 16
+    baud_rate: 1200
+    data_bits: 7
+    parity: EVEN
+    stop_bits: 2
+    id: uart_rx
+  - tx_pin: 17
+    baud_rate: 300
+    data_bits: 7
+    parity: EVEN
+    stop_bits: 2
+    id: uart_tx    
+
+switch:
+- platform: custom
+  lambda: |-
+    auto multical_sensor = new Multical602(id(uart_tx), id(uart_rx), id(m_energy), id(m_volume), id(m_tin), id(m_tout), id(m_tdiff), id(m_power), id(m_flow), id(m_poweract), id(m_info), id(m_status));    
+    App.register_component(multical_sensor);
+    return {multical_sensor};
+
+  switches:
+    name: "Multical Stadsverwarming"
+    id: multical_sensor
+      
+sensor:
+#Multical Custom Sensors      
+  - name: "Multical Meterstand"
+    platform: template
+    id: m_energy
+    icon: "mdi:lightning-bolt"
+    unit_of_measurement: GJ
+    accuracy_decimals: 3
+    update_interval: 60 sec
+    filters:
+      - filter_out: 0.000
+    
+  - name: "Multical Meterstand Gas eq"
+    platform: template
+    lambda: |-
+      if (id(m_energy).state) {
+        return id(m_energy).state * 31.6;
+      } else {
+        return 0.0;
+      }
+    update_interval: 60s
+    unit_of_measurement: m³
+    device_class: gas
+    accuracy_decimals: 3
+    state_class: measurement
+    
+  - name: "Multical Volume"
+    platform: template
+    id: m_volume
+    unit_of_measurement: m³
+    accuracy_decimals: 1
+    state_class: "measurement"
+    update_interval: 60 sec
+
+  - name: "Multical Tempratuur In"
+    platform: template
+    id: m_tin
+    icon: "mdi:thermometer"
+    unit_of_measurement: °C
+    accuracy_decimals: 1
+    state_class: "measurement"
+    device_class: "temperature"
+    update_interval: 60 sec
+
+  - name: "Multical Tempratuur Uit"
+    platform: template
+    id: m_tout
+    icon: "mdi:thermometer"
+    unit_of_measurement: °C
+    accuracy_decimals: 1
+    state_class: "measurement"
+    device_class: "temperature"
+    update_interval: 60 sec
+
+  - name: "Multical Tempratuur Verschil"
+    platform: template
+    id: m_tdiff
+    icon: "mdi:thermometer"
+    unit_of_measurement: °C
+    accuracy_decimals: 1
+    state_class: "measurement"
+    device_class: "temperature"
+    update_interval: 60 sec
+
+  - name: "Multical Vermogen"
+    platform: template
+    id: m_power
+    icon: "mdi:flash"
+    unit_of_measurement: kW
+    accuracy_decimals: 1
+    state_class: "measurement"
+    device_class: "power"
+    update_interval: 60 sec
+
+  - name: "Multical Flow"
+    platform: template
+    id: m_flow
+    unit_of_measurement: l/h
+    accuracy_decimals: 1    
+    state_class: "measurement"  
+    update_interval: 60 sec
+  
+  - name: "Multical Vermogen Actueel"
+    platform: template
+    id: m_poweract
+    unit_of_measurement: kW
+    accuracy_decimals: 1    
+    state_class: "measurement"   
+    update_interval: 60 sec
+
+text_sensor:  
+#Multical Custom Sensors      
+  - name: "Multical Laatste Status"
+    platform: template
+    id: m_status  
+  - name: "Multical Info"
+    platform: template
+    id: m_info
+    update_interval: 60 sec
+    
+captive_portal:
